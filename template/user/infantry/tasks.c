@@ -110,6 +110,8 @@ void Task_Gimbal(void *Parameters) {
     float pitchRampProgress    = 0;
     float pitchRampStart       = Gyroscope_EulerData.pitch;
     float pitchAngleTargetRamp = 0;
+    uint8_t pitchRampUpComplete = 0;
+    uint8_t pitchRampUpComplete = 0;
 
     //初始化重力补偿模块
     Gravity_Calibration_Init();
@@ -171,18 +173,33 @@ void Task_Gimbal(void *Parameters) {
         // 限制云台运动范围即斜坡补偿
         MIAO(pitchAngleTarget, GIMBAL_PITCH_MIN + chassisAngle, GIMBAL_PITCH_MAX + chassisAngle);
 
-        // 开机时pitch轴匀速抬起
+        // 开机时pitch轴匀速抬起和回落
         if(!pitchInit){
-            pitchAngleTarget = RAMP(pitchRampStart, 0, pitchRampProgress);
-            if (pitchRampProgress < 1) {
-                // 在抬起过程中采集数据用于重力补偿标定
-                Gravity_Add_Calibration_Point(Gyroscope_EulerData.pitch, Motor_Pitch.actualCurrent);
-                pitchRampProgress += 0.005f;  
-            }else {
-                // 抬起完成后执行标定
-                Gravity_Perform_Calibration();
-                Motor_Set_Angle_Bias(&Motor_Pitch, Motor_Pitch.angle);
-                pitchInit = 1;
+            if (!pitchRampUpComplete) {
+                // 第一阶段：从初始位置抬起到20度
+                pitchAngleTarget = RAMP(pitchRampStart, 20, pitchRampProgress);
+                if (pitchRampProgress < 1) {
+                    // 在抬起过程中采集数据用于重力补偿标定
+                    Gravity_Add_Calibration_Point(Gyroscope_EulerData.pitch, Motor_Pitch.actualCurrent);
+                    pitchRampProgress += 0.005f;  
+                }else {
+                    // 抬起完成，开始回落
+                    pitchRampUpComplete = 1;
+                    pitchRampProgress = 0; // 重置进度，准备回落
+                }
+            } else {
+                // 第二阶段：从20度回落至0度
+                pitchAngleTarget = RAMP(20, 0, pitchRampProgress);
+                if (pitchRampProgress < 1) {
+                    // 在回落过程中继续采集数据
+                    Gravity_Add_Calibration_Point(Gyroscope_EulerData.pitch, Motor_Pitch.actualCurrent);
+                    pitchRampProgress += 0.005f;  
+                }else {
+                    // 回落完成后执行标定
+                    Gravity_Perform_Calibration();
+                    Motor_Set_Angle_Bias(&Motor_Pitch, Motor_Pitch.angle);
+                    pitchInit = 1;
+                }
             }
         }
 
