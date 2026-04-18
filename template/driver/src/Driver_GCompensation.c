@@ -50,6 +50,7 @@ void Gravity_Perform_Calibration(void) {
     // 使用最小二乘法拟合 I = k * sin(θ) 形式的模型
     // 目标：找到系数k，使得误差平方和最小
     
+    
     float sum_xy = 0.0f;  // sum(current * sin(pitch))
     float sum_xx = 0.0f;  // sum(sin(pitch) * sin(pitch))
     
@@ -93,7 +94,7 @@ float Gravity_Get_Coefficient(void) {
 }
 
 /**
- * @brief 检查是否已完成标定
+ * @brief 检查是否已经完成标定
  * @return 1表示已完成标定，0表示未完成
  */
 uint8_t Gravity_Is_Calibrated(void) {
